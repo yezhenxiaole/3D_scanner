@@ -72,12 +72,39 @@ set "SCANNER_BUILD=%SCANNER_SRC%\build"
 set "VCPKG_TOOLCHAIN=%RTABMAP_SRC%\vcpkg\scripts\buildsystems\vcpkg.cmake"
 set "TRIPLET=x64-windows-release"
 
-:: ---- 3. 验证 vcpkg 依赖 ----
+:: ---- 2.5 询问 TensorRT 路径 ----
+if not defined TENSORRT_ROOT (
+    set /p "TENSORRT_ROOT=Enter TensorRT root path (e.g. C:\TensorRT-10.x.x): "
+)
+if not exist "%TENSORRT_ROOT%\lib\nvinfer.lib" (
+    echo [X] nvinfer.lib not found at "%TENSORRT_ROOT%\lib"
+    pause
+    exit /b 1
+)
+echo [v] TensorRT: %TENSORRT_ROOT%
+
+:: ---- 3. 验证 / 初始化 vcpkg ----
+if not exist "%RTABMAP_SRC%\vcpkg.exe" (
+    if not exist "%RTABMAP_SRC%\vcpkg\vcpkg.exe" (
+        echo.
+        echo [1/5] Cloning vcpkg (first time)...
+        pushd "%RTABMAP_SRC%"
+        git clone https://github.com/microsoft/vcpkg.git
+        call vcpkg\bootstrap-vcpkg.bat
+        popd
+    )
+    set "VCPKG_EXE=%RTABMAP_SRC%\vcpkg\vcpkg.exe"
+    set "VCPKG_TOOLCHAIN=%RTABMAP_SRC%\vcpkg\scripts\buildsystems\vcpkg.cmake"
+) else (
+    set "VCPKG_EXE=%RTABMAP_SRC%\vcpkg.exe"
+)
+
+:: ---- 4. 安装 vcpkg 依赖 ----
 if not exist "%RTABMAP_SRC%\vcpkg_installed\%TRIPLET%\include" (
     echo.
-    echo [1/4] Installing vcpkg dependencies (first time, ~30-60 min)...
+    echo [2/5] Installing vcpkg dependencies (first time, ~30-60 min)...
     pushd "%RTABMAP_SRC%"
-    call vcpkg install --triplet %TRIPLET%
+    call "%VCPKG_EXE%" install --triplet %TRIPLET%
     if !errorlevel! neq 0 (
         popd
         echo [X] vcpkg install failed!
@@ -89,9 +116,9 @@ if not exist "%RTABMAP_SRC%\vcpkg_installed\%TRIPLET%\include" (
     echo [v] vcpkg dependencies found
 )
 
-:: ---- 4. 构建 RTAB-Map ----
+:: ---- 5. 构建 RTAB-Map ----
 echo.
-echo [2/4] Building RTAB-Map...
+echo [3/5] Building RTAB-Map...
 if not exist "%RTABMAP_BUILD%" (
     echo [+] Configuring RTAB-Map...
     cmake -S "%RTABMAP_SRC%" -B "%RTABMAP_BUILD%" -G Ninja ^
@@ -138,9 +165,9 @@ if not exist "%RTABMAP_INSTALL%\lib\rtabmap_core.lib" (
 )
 echo [v] RTAB-Map built: %RTABMAP_INSTALL%
 
-:: ---- 5. 构建 stereo_scanner ----
+:: ---- 6. 构建 stereo_scanner ----
 echo.
-echo [3/4] Configuring stereo_scanner...
+echo [4/5] Configuring stereo_scanner...
 if exist "%SCANNER_BUILD%" (
     rd /s /q "%SCANNER_BUILD%"
 )
@@ -159,7 +186,7 @@ if !errorlevel! neq 0 (
 )
 
 echo.
-echo [4/4] Building stereo_scanner...
+echo [5/5] Building stereo_scanner...
 cmake --build "%SCANNER_BUILD%" --config Release -- -j %NUMBER_OF_PROCESSORS%
 if !errorlevel! neq 0 (
     echo [X] stereo_scanner build failed!
@@ -211,15 +238,3 @@ echo    2. Run scripts/export_ffs_engine.py to export FFS model
 echo    3. Run stereo_offline to process image sequences
 echo.
 pause
-
-
-:: ---- 2.5 询问 TensorRT 路径 ----
-if not defined TENSORRT_ROOT (
-    set /p "TENSORRT_ROOT=Enter TensorRT root path (e.g. C:\TensorRT-10.x.x): "
-)
-if not exist "%TENSORRT_ROOT%\lib\nvinfer.lib" (
-    echo [X] nvinfer.lib not found at "%TENSORRT_ROOT%\lib"
-    pause
-    exit /b 1
-)
-echo [v] TensorRT: %TENSORRT_ROOT%

@@ -55,7 +55,8 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs calib3d highgui v
 find_package(Eigen3 REQUIRED)
 
 # ---- TensorRT ----
-set(TENSORRT_ROOT "E:/nzy/TensorRT-10.13.0" CACHE PATH "TensorRT installation root")
+# 通过 -DTENSORRT_ROOT="C:/TensorRT-10.x.x" 在 cmake 命令行指定
+set(TENSORRT_ROOT "" CACHE PATH "TensorRT installation root (e.g. C:/TensorRT-10.x.x)")
 set(TENSORRT_HINT_DIRS
   ${TENSORRT_ROOT}
   $ENV{CONDA_PREFIX}

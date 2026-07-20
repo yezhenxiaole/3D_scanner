@@ -1,0 +1,54 @@
+# === 构建输出 ===
+build/
+out/
+x64/
+x86/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# === Visual Studio ===
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.pdb
+*.ilk
+*.obj
+*.exp
+ipch/
+*.opensdf
+*.sdf
+*.vc.db
+*.vc.opendb
+
+# === CMake / Ninja 中间产物 ===
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+.ninja_deps
+.ninja_log
+*.ninja
+
+# === Python 缓存 ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# === TeleAgent 中间文件 ===
+.temp/
+
+# === 运行时产生的目录 ===
+calibration_capture/
+output/
+
+# === TensorRT / 模型大文件 ===
+timing_cache.bin
+*.engine
+*.onnx
+weights/
+*.pth

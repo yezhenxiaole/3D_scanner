@@ -1,0 +1,41 @@
+%YAML:1.0
+# Stereo Scanner 默认配置文件
+# 路径相对于 stereo_scanner/ 项目根目录
+
+# === 标定相关 ===
+calibration_file: "config/cali.yml"
+chessboard_cols: 9
+chessboard_rows: 6
+chessboard_square_size: 0.025    # 方格尺寸(米), 常见棋盘格 25mm
+min_calibration_pairs: 20
+
+# === 相机相关 ===
+left_camera_id: 0
+right_camera_id: 1
+capture_width: 640
+capture_height: 480
+
+# === FFS 推理相关 ===
+ffs_engine_dir: "ffs_engine"          # TRT 引擎目录 (相对于运行目录)
+ffs_max_disp: 192                # 最大视差搜索范围 (需根据基线+场景深度调整)
+ffs_valid_iters: 8               # GRU迭代次数 (离线=8, 实时=4)
+ffs_scale: 1.0                   # 输入缩放因子 (1.0=原始, 0.5=半分辨率加速)
+
+# === RTAB-Map SLAM 相关 ===
+rtabmap_database: ""             # 空=内存模式, 非空=保存到db文件
+rtabmap_loop_thr: 0.11           # 回环检测阈值 (越小越严格)
+rtabmap_linear_update: 0.1       # 最小位移更新(米)
+rtabmap_angular_update: 0.1      # 最小角度更新(弧度)
+max_depth: 10.0                  # 最大有效深度(米)
+odom_strategy: 0                 # 里程计策略: 0=F2M(默认), 1=F2F, 2=ICP
+feature_decimation: 4            # 特征降采样因子
+
+# === 输出相关 ===
+output_dir: "output"
+voxel_size: 0.01                 # 点云体素滤波尺寸(米)
+export_point_cloud: 1            # 是否导出点云
+export_trajectory: 1             # 是否导出轨迹
+
+# === 数据源 ===
+image_dir: ""                    # 离线模式: 图像目录 (运行时通过 --dir 覆盖)
+image_format: "png"              # 图像文件格式

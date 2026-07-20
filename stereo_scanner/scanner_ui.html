@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS-3D · 工业级双目三维扫描系统</title>
+<style>
+/* ============================================================
+   设计令牌 - 颜色系统（具体色值,深色科技风）
+   ============================================================ */
+:root {
+  /* 背景层级 */
+  --bg-deep:        #0B0E13;   /* 最深底色 */
+  --bg-base:        #11161D;   /* 主背景 */
+  --bg-card:        #161C24;   /* 卡片背景 */
+  --bg-card-hi:     #1C2330;   /* 卡片悬浮 */
+  --bg-inset:       #0E1318;   /* 内陷区域 */
+
+  /* 边框层级 */
+  --bd-base:        #232A35;   /* 基础边框 */
+  --bd-hi:          #2D3744;   /* 高亮边框 */
+  --bd-accent:      #00D4FF33; /* 强调边框(青色低透明) */
+
+  /* 文字层级 */
+  --txt-h1:         #E6EDF3;   /* 主标题 */
+  --txt-h2:         #C9D1D9;   /* 副标题 */
+  --txt-body:       #9BA5B1;   /* 正文 */
+  --txt-dim:        #5C6873;   /* 辅助文字 */
+  --txt-mute:       #3D4853;   /* 弱化文字 */
+
+  /* 强调色 */
+  --c-cyan:         #00D4FF;   /* 主强调(青电光) */
+  --c-cyan-dim:     #00D4FFAA;
+  --c-blue:         #3C86E5;   /* 次强调(信号蓝) */
+  --c-green:        #3FB950;   /* 成功/正常 */
+  --c-amber:        #FFB454;   /* 警告 */
+  --c-red:          #F85149;   /* 危险/录制 */
+  --c-purple:       #A371F7;   /* 辅助点缀 */
+
+  /* 阴影 */
+  --sh-card:        0 1px 2px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+  --sh-pop:         0 8px 32px rgba(0,0,0,0.6);
+
+  /* 间距系统(8的倍数) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* 圆角 */
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 6px;
+  --r-4: 8px;
+
+  /* 字体 */
+  --ff-base: "Microsoft YaHei UI", "PingFang SC", "Segoe UI", sans-serif;
+  --ff-mono: "JetBrains Mono", "Consolas", "Cascadia Code", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+  color: var(--txt-h2);
+  font-family: var(--ff-base);
+  font-size: 12px;
+  line-height: 1.5;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   主网格布局: 顶栏 + (左侧栏 + 中央 + 右侧栏) + 底栏
+   12列网格,8的倍数间距
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-rows: 56px 1fr 48px;
+  grid-template-columns: 64px 1fr 336px;
+  grid-template-areas:
+    "top  top  top"
+    "side main right"
+    "bot  bot  bot";
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-base);
+}
+
+/* ============================================================
+   顶部状态栏
+   ============================================================ */
+.topbar {
+  grid-area: top;
+  display: grid;
+  grid-template-columns: 280px 1fr auto;
+  align-items: center;
+  background: linear-gradient(180deg, #181E27 0%, #11161D 100%);
+  border-bottom: 1px solid var(--bd-base);
+  padding: 0 var(--s-5);
+  position: relative;
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--c-cyan)33 50%, transparent 100%);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-3);
+  background: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-blue) 100%);
+  display: grid;
+  place-items: center;
+  position: relative;
+  box-shadow: 0 0 12px var(--c-cyan)44;
+}
+.brand-logo svg { width: 18px; height: 18px; }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.brand-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--txt-h1);
+  letter-spacing: 0.5px;
+}
+.brand-model {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--c-cyan);
+  letter-spacing: 1px;
+}
+
+/* 工作流导航 */
+.workflow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+}
+.wf-step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  color: var(--txt-dim);
+  font-size: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.wf-step:hover { color: var(--txt-h2); }
+.wf-step.active {
+  color: var(--c-cyan);
+}
+.wf-step .wf-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-inset);
+  border: 1px solid var(--bd-hi);
+  display: grid;
+  place-items: center;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.wf-step.active .wf-num {
+  background: var(--c-cyan);
+  border-color: var(--c-cyan);
+  color: var(--bg-deep);
+  box-shadow: 0 0 8px var(--c-cyan)88;
+}
+.wf-step.done .wf-num {
+  background: var(--c-green)22;
+  border-color: var(--c-green);
+  color: var(--c-green);
+}
+.wf-arrow {
+  color: var(--txt-mute);
+  font-size: 10px;
+  margin: 0 var(--s-1);
+}
+
+/* 顶部右侧:状态指示 + 系统监控 */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+.rec-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  font-family: var(--ff-mono);
+  font-size: 11px;
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-red);
+  box-shadow: 0 0 8px var(--c-red);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.rec-indicator.idle .rec-dot {
+  background: var(--txt-mute);
+  box-shadow: none;
+  animation: none;
+}
+.rec-indicator.idle .rec-label { color: var(--txt-dim); }
+.rec-label { color: var(--c-red); font-weight: 600; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.sys-monitor {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.sys-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.sys-label {
+  font-size: 9px;
+  color: var(--txt-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.sys-value {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--txt-h2);
+}
+.sys-value.green { color: var(--c-green); }
+.sys-value.amber { color: var(--c-amber); }
+
+.sys-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--bd-base);
+}
+
+.clock {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--txt-h2);
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   左侧导航栏
+   ============================================================ */
+.sidebar {
+  grid-area: side;
+  background: var(--bg-deep);
+  border-right: 1px solid var(--bd-base);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-4) 0;
+  gap: var(--s-2);
+}
+.nav-item {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--txt-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.nav-item:hover {
+  color: var(--txt-h2);
+  background: var(--bg-card);
+}
+.nav-item.active {
+  color: var(--c-cyan);
+  background: var(--c-cyan)11;
+}
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--c-cyan);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px var(--c-cyan);
+}
+.nav-item svg { width: 20px; height: 20px; }
+.nav-item .nav-label {
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+.nav-spacer { flex: 1; }
+
+/* ============================================================
+   中央主视图区
+   ============================================================ */
+.main {
+  grid-area: main;
+  display: grid;
+  grid-template-rows: 1fr 220px;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  overflow: hidden;
+}
+
+/* 3D点云主视图 */
+.viewport-3d {
+  position: relative;
+  background: radial-gradient(ellipse at center, #0E1419 0%, #060809 100%);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+.viewport-3d canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.viewport-3d canvas:active { cursor: grabbing; }
+
+/* 视图角标 */
+.view-corner {
+  position: absolute;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--txt-dim);
+  pointer-events: none;
+  letter-spacing: 0.5px;
+}
+.vc-tl { top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; }
+.vc-tr { top: 12px; right: 16px; text-align: right; }
+.vc-bl { bottom: 12px; left: 16px; }
+.vc-br { bottom: 12px; right: 16px; text-align: right; }
+
+/* HUD 标签 */
+.hud-tag {
+  background: var(--bg-deep)CC;
+  border: 1px solid var(--bd-base);
+  padding: 4px 8px;
+  border-radius: var(--r-2);
+  backdrop-filter: blur(8px);
+}
+.hud-tag .hud-label {
+  color: var(--txt-dim);
+  font-size: 9px;
+  display: block;
+  letter-spacing: 0.5px;
+}
+.hud-tag .hud-val {
+  color: var(--c-cyan);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 视图工具栏 */
+.view-tools {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: var(--bg-deep)CC;
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  padding: 4px;
+  backdrop-filter: blur(8px);
+}
+.vt-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--txt-dim);
+  cursor: pointer;
+  border-radius: var(--r-2);
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+.vt-btn:hover { background: var(--bg-card-hi); color: var(--txt-h2); }
+.vt-btn.active { background: var(--c-cyan)22; color: var(--c-cyan); }
+.vt-btn svg { width: 16px; height: 16px; }
+.vt-sep { width: 1px; background: var(--bd-base); margin: 4px 2px; }
+
+/* 扫描状态浮层(左下) */
+.scan-status-overlay {
+  position: absolute;
+  left: 16px;
+  bottom: 48px;
+  background: var(--bg-deep)E0;
+  border: 1px solid var(--bd-hi);
+  border-radius: var(--r-3);
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+.sso-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.sso-label { color: var(--txt-dim); }
+.sso-val {
+  font-family: var(--ff-mono);
+  color: var(--txt-h1);
+  font-weight: 500;
+}
+.sso-val.accent { color: var(--c-cyan); }
+.sso-val.warn { color: var(--c-amber); }
+
+/* ============================================================
+   双目预览栏
+   ============================================================ */
+.preview-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--s-3);
+  height: 220px;
+}
+.preview-card {
+  background: var(--bg-deep);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bd-base);
+  font-size: 11px;
+}
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--txt-h2);
+  font-weight: 500;
+}
+.preview-title .pt-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--c-green);
+  box-shadow: 0 0 6px var(--c-green);
+}
+.preview-title .pt-dot.warn { background: var(--c-amber); box-shadow: 0 0 6px var(--c-amber); }
+.preview-meta {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--txt-dim);
+}
+.preview-canvas-wrap {
+  flex: 1;
+  position: relative;
+  background: #050709;
+  overflow: hidden;
+}
+.preview-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.preview-overlay {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--txt-h1);
+  background: var(--bg-deep)AA;
+  padding: 2px 6px;
+  border-radius: var(--r-1);
+  letter-spacing: 0.3px;
+}
+.preview-overlay.right { left: auto; right: 8px; }
+.crosshair {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 20px; height: 20px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.crosshair::before, .crosshair::after {
+  content: "";
+  position: absolute;
+  background: var(--c-cyan)88;
+}
+.crosshair::before { top: 50%; left: 0; right: 0; height: 1px; }
+.crosshair::after { left: 50%; top: 0; bottom: 0; width: 1px; }
+
+/* ============================================================
+   右侧面板
+   ============================================================ */
+.right-panel {
+  grid-area: right;
+  background: var(--bg-base);
+  border-left: 1px solid var(--bd-base);
+  overflow-y: auto;
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.right-panel::-webkit-scrollbar { width: 6px; }
+.right-panel::-webkit-scrollbar-track { background: transparent; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--bd-hi); border-radius: 3px; }
+
+/* 卡片基础 */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bd-base);
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt-h1);
+  letter-spacing: 0.3px;
+}
+.card-title-icon {
+  width: 14px; height: 14px;
+  color: var(--c-cyan);
+}
+.card-status {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--r-2);
+  letter-spacing: 0.5px;
+}
+.card-status.ok { color: var(--c-green); background: var(--c-green)11; border: 1px solid var(--c-green)33; }
+.card-status.warn { color: var(--c-amber); background: var(--c-amber)11; border: 1px solid var(--c-amber)33; }
+.card-body { padding: 12px 14px; }
+
+/* 标定状态: KV 表 */
+.kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+.kv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kv-label {
+  font-size: 10px;
+  color: var(--txt-dim);
+  letter-spacing: 0.3px;
+}
+.kv-value {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--txt-h1);
+}
+.kv-value.accent { color: var(--c-cyan); }
+
+/* 扫描控制按钮组 */
+.scan-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--bd-hi);
+  background: var(--bg-card-hi);
+  color: var(--txt-h2);
+  border-radius: var(--r-3);
+  font-family: var(--ff-base);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+.btn:hover {
+  background: var(--bg-card-hi);
+  border-color: var(--c-cyan)55;
+  color: var(--txt-h1);
+}
+.btn:active { transform: scale(0.98); }
+.btn svg { width: 14px; height: 14px; }
+.btn-primary {
+  background: linear-gradient(180deg, var(--c-cyan) 0%, var(--c-blue) 100%);
+  border-color: var(--c-cyan);
+  color: var(--bg-deep);
+  font-weight: 600;
+  box-shadow: 0 0 12px var(--c-cyan)55;
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg, var(--c-cyan) 0%, var(--c-blue) 100%);
+  filter: brightness(1.1);
+  border-color: var(--c-cyan);
+}
+.btn-danger {
+  border-color: var(--c-red)55;
+  color: var(--c-red);
+}
+.btn-danger:hover { background: var(--c-red)11; border-color: var(--c-red); }
+.btn-span2 { grid-column: span 2; }
+
+/* 参数滑杆 */
+.param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.param-row:last-child { margin-bottom: 0; }
+.param-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.param-label {
+  font-size: 11px;
+  color: var(--txt-h2);
+}
+.param-value {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--c-cyan);
+  padding: 1px 6px;
+  background: var(--c-cyan)11;
+  border-radius: var(--r-1);
+}
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--bg-inset);
+  border-radius: 2px;
+  outline: none;
+  border: 1px solid var(--bd-base);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-cyan);
+  border: 2px solid var(--bg-deep);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--c-cyan)88;
+  transition: transform 0.1s;
+}
+.slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-cyan);
+  border: 2px solid var(--bg-deep);
+  cursor: pointer;
+}
+
+/* 参数范围标注 */
+.param-range {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  color: var(--txt-mute);
+  margin-top: -2px;
+}
+
+/* Mini 切换组 */
+.toggle-group {
+  display: flex;
+  background: var(--bg-inset);
+  border: 1px solid var(--bd-base);
+  border-radius: var(--r-3);
+  padding: 2px;
+  gap: 2px;
+}
+.toggle-btn {
+  flex: 1;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: var(--txt-dim);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: var(--r-2);
+  transition: all 0.15s;
+  font-family: var(--ff-base);
+}
+.toggle-btn:hover { color: var(--txt-h2); }
+.toggle-btn.active {
+  background: var(--c-cyan)22;
+  color: var(--c-cyan);
+}
+
+/* ============================================================
+   底部状态栏
+   ============================================================ */
+.bottombar {
+  grid-area: bot;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 0 var(--s-5);
+  background: linear-gradient(0deg, #181E27 0%, #11161D 100%);
+  border-top: 1px solid var(--bd-base);
+  font-size: 11px;
+}
+
+.progressBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.progressBar-label {
+  font-family: var(--ff-mono);
+  color: var(--txt-dim);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.progressBar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-inset);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--bd-base);
+}
+.progressBar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-cyan) 0%, var(--c-blue) 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--c-cyan)88;
+  transition: width 0.3s ease;
+  position: relative;
+}
+.progressBar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  animation: shimmer 1.5s linear infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.progressBar-pct {
+  font-family: var(--ff-mono);
+  color: var(--c-cyan);
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* 底部统计 */
+.bot-stats {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.bot-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.bot-stat-label {
+  font-size: 9px;
+  color: var(--txt-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.bot-stat-val {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--txt-h1);
+  font-weight: 500;
+}
+.bot-stat-val.accent { color: var(--c-cyan); }
+
+/* 历史任务徽章 */
+.task-badges {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.task-badge {
+  width: 8px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--bd-hi);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.task-badge:hover { background: var(--c-cyan-dim); }
+.task-badge.active { background: var(--c-cyan); box-shadow: 0 0 6px var(--c-cyan); }
+.task-badge.done { background: var(--c-green)55; }
+
+/* ============================================================
+   滚动条全局
+   ============================================================ */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--bd-hi); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bd-accent); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================================================
+       顶部状态栏
+       ============================================================ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">NEXUS-3D</div>
+        <div class="brand-model">PRO · INDUSTRIAL SCANNER</div>
+      </div>
+    </div>
+
+    <nav class="workflow">
+      <div class="wf-step done"><div class="wf-num">1</div><span>设备连接</span></div>
+      <div class="wf-step done"><div class="wf-num">2</div><span>双目标定</span></div>
+      <div class="wf-arrow">▸</div>
+      <div class="wf-step active"><div class="wf-num">3</div><span>扫描采集</span></div>
+      <div class="wf-arrow">▸</div>
+      <div class="wf-step"><div class="wf-num">4</div><span>点云融合</span></div>
+      <div class="wf-arrow">▸</div>
+      <div class="wf-step"><div class="wf-num">5</div><span>后处理</span></div>
+      <div class="wf-arrow">▸</div>
+      <div class="wf-step"><div class="wf-num">6</div><span>导出</span></div>
+    </nav>
+
+    <div class="topbar-right">
+      <div class="rec-indicator" id="recIndicator">
+        <div class="rec-dot"></div>
+        <span class="rec-label" id="recLabel">扫描中</span>
+      </div>
+      <div class="sys-monitor">
+        <div class="sys-item">
+          <div class="sys-label">GPU</div>
+          <div class="sys-value green" id="gpuVal">62%</div>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <div class="sys-label">VRAM</div>
+          <div class="sys-value" id="vramVal">4.8/8G</div>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <div class="sys-label">TEMP</div>
+          <div class="sys-value amber" id="tempVal">68°C</div>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <div class="sys-label">TRT</div>
+          <div class="sys-value" id="trtVal">28ms</div>
+        </div>
+      </div>
+      <div class="sys-divider"></div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       左侧导航
+       ============================================================ -->
+  <aside class="sidebar">
+    <div class="nav-item active" title="扫描工作站">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      <span class="nav-label">扫描</span>
+    </div>
+    <div class="nav-item" title="标定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+      <span class="nav-label">标定</span>
+    </div>
+    <div class="nav-item" title="任务库">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="nav-label">任务</span>
+    </div>
+    <div class="nav-item" title="点云库">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="2"/>
+        <circle cx="5" cy="5" r="1.5"/>
+        <circle cx="19" cy="5" r="1.5"/>
+        <circle cx="5" cy="19" r="1.5"/>
+        <circle cx="19" cy="19" r="1.5"/>
+        <circle cx="12" cy="5" r="1.5"/>
+        <circle cx="12" cy="19" r="1.5"/>
+        <circle cx="5" cy="12" r="1.5"/>
+        <circle cx="19" cy="12" r="1.5"/>
+      </svg>
+      <span class="nav-label">点云</span>
+    </div>
+    <div class="nav-item" title="导出">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      <span class="nav-label">导出</span>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" title="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span class="nav-label">设置</span>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       中央主视图
+       ============================================================ -->
+  <main class="main">
+    <!-- 3D点云主视图 -->
+    <section class="viewport-3d">
+      <canvas id="canvas3d"></canvas>
+
+      <!-- 视图工具栏 -->
+      <div class="view-tools">
+        <button class="vt-btn active" title="点云模式">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="18" r="1.5"/><circle cx="18" cy="18" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="12" cy="18" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+        </button>
+        <button class="vt-btn" title="网格模式">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        </button>
+        <button class="vt-btn" title="着色模式">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+        </button>
+        <div class="vt-sep"></div>
+        <button class="vt-btn" title="前视图">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12h16"/></svg>
+        </button>
+        <button class="vt-btn" title="顶视图">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="8" width="16" height="8" rx="1"/></svg>
+        </button>
+        <button class="vt-btn" title="重置视角" id="btnResetView">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg>
+        </button>
+        <div class="vt-sep"></div>
+        <button class="vt-btn" title="截图">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+
+      <!-- 左上角标:视角信息 -->
+      <div class="view-corner vc-tl">
+        <div class="hud-tag">
+          <span class="hud-label">VIEW</span>
+          <span class="hud-val" id="viewModeVal">PERSP</span>
+        </div>
+        <div class="hud-tag">
+          <span class="hud-label">FOV</span>
+          <span class="hud-val">45°</span>
+        </div>
+        <div class="hud-tag">
+          <span class="hud-label">ZOOM</span>
+          <span class="hud-val" id="zoomVal">1.0×</span>
+        </div>
+      </div>
+
+      <!-- 右上角标:坐标轴信息 -->
+      <div class="view-corner vc-tr">
+        <div class="hud-tag">
+          <span class="hud-label">CAM POS</span>
+          <span class="hud-val" id="camPosVal">2.0, 1.5, 3.0</span>
+        </div>
+      </div>
+
+      <!-- 左下角标:坐标轴标识 -->
+      <div class="view-corner vc-bl">
+        <div class="hud-tag">
+          <span class="hud-label">AXIS</span>
+          <span class="hud-val">X→ Y↑ Z⊙</span>
+        </div>
+      </div>
+
+      <!-- 右下角标:FPS -->
+      <div class="view-corner vc-br">
+        <div class="hud-tag">
+          <span class="hud-label">RENDER</span>
+          <span class="hud-val" id="renderFpsVal">60 FPS</span>
+        </div>
+      </div>
+
+      <!-- 扫描状态浮层 -->
+      <div class="scan-status-overlay">
+        <div class="sso-row">
+          <span class="sso-label">当前帧</span>
+          <span class="sso-val accent" id="curFrameVal">#000000</span>
+        </div>
+        <div class="sso-row">
+          <span class="sso-label">本帧点数</span>
+          <span class="sso-val" id="framePtsVal">0</span>
+        </div>
+        <div class="sso-row">
+          <span class="sso-label">融合点数</span>
+          <span class="sso-val accent" id="totalPtsVal">0</span>
+        </div>
+        <div class="sso-row">
+          <span class="sso-label">回环检测</span>
+          <span class="sso-val" id="loopVal">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 双目预览栏 -->
+    <section class="preview-bar">
+      <!-- 左目 -->
+      <div class="preview-card">
+        <div class="preview-head">
+          <div class="preview-title">
+            <span class="pt-dot"></span>
+            <span>左目 · LEFT</span>
+          </div>
+          <div class="preview-meta">CAM0 · 1280×960 · 30FPS</div>
+        </div>
+        <div class="preview-canvas-wrap">
+          <canvas id="canvasLeft"></canvas>
+          <div class="crosshair"></div>
+          <div class="preview-overlay">EX:8.0ms · GA:1.2x</div>
+          <div class="preview-overlay right">ISO:400</div>
+        </div>
+      </div>
+
+      <!-- 右目 -->
+      <div class="preview-card">
+        <div class="preview-head">
+          <div class="preview-title">
+            <span class="pt-dot"></span>
+            <span>右目 · RIGHT</span>
+          </div>
+          <div class="preview-meta">CAM1 · 1280×960 · 30FPS</div>
+        </div>
+        <div class="preview-canvas-wrap">
+          <canvas id="canvasRight"></canvas>
+          <div class="crosshair"></div>
+          <div class="preview-overlay">EX:8.0ms · GA:1.2x</div>
+          <div class="preview-overlay right">ISO:400</div>
+        </div>
+      </div>
+
+      <!-- 深度图 -->
+      <div class="preview-card">
+        <div class="preview-head">
+          <div class="preview-title">
+            <span class="pt-dot" id="depthDot"></span>
+            <span>深度图 · DEPTH (FFS)</span>
+          </div>
+          <div class="preview-meta">CV_32FC1 · 0.3-1.5m</div>
+        </div>
+        <div class="preview-canvas-wrap">
+          <canvas id="canvasDepth"></canvas>
+          <div class="preview-overlay">TURBO · 90.7%VALID</div>
+          <div class="preview-overlay right" id="depthRangeVal">0.35~1.19m</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       右侧面板
+       ============================================================ -->
+  <aside class="right-panel">
+
+    <!-- 标定状态卡片 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+          <span>双目标定状态</span>
+        </div>
+        <span class="card-status ok" id="caliStatusBadge">已校准</span>
+      </div>
+      <div class="card-body">
+        <div class="kv-grid">
+          <div class="kv-item"><span class="kv-label">基线 baseline</span><span class="kv-value accent">63.0 mm</span></div>
+          <div class="kv-item"><span class="kv-label">焦距 fx/fy</span><span class="kv-value">754.7 / 754.7</span></div>
+          <div class="kv-item"><span class="kv-label">主点 cx/cy</span><span class="kv-value">489.4 / 265.2</span></div>
+          <div class="kv-item"><span class="kv-label">重投影误差</span><span class="kv-value">0.18 px</span></div>
+          <div class="kv-item"><span class="kv-label">图像尺寸</span><span class="kv-value">1280×960</span></div>
+          <div class="kv-item"><span class="kv-label">标定时间</span><span class="kv-value">2026-07-15</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 扫描控制卡片 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          <span>扫描控制</span>
+        </div>
+        <span class="card-status ok" id="scanStatusBadge">运行中</span>
+      </div>
+      <div class="card-body">
+        <div class="scan-controls">
+          <button class="btn btn-primary btn-span2" id="btnStart">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="btnStartLabel">开始扫描</span>
+          </button>
+          <button class="btn" id="btnPause">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <span>暂停</span>
+          </button>
+          <button class="btn btn-danger" id="btnStop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg>
+            <span>停止</span>
+          </button>
+          <button class="btn btn-span2" id="btnLoop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span>触发回环优化</span>
+          </button>
+          <button class="btn btn-span2" id="btnExport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>导出 PLY / STL</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 深度参数卡片 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+          <span>深度推理参数</span>
+        </div>
+        <span class="card-status ok">FFS-Large FP16</span>
+      </div>
+      <div class="card-body">
+        <div class="param-row">
+          <div class="param-head">
+            <span class="param-label">最大视差搜索</span>
+            <span class="param-value" id="dispMaxVal">192</span>
+          </div>
+          <input type="range" class="slider" min="64" max="256" step="16" value="192" id="dispMaxSlider">
+          <div class="param-range"><span>64</span><span>256 px</span></div>
+        </div>
+        <div class="param-row">
+          <div class="param-head">
+            <span class="param-label">GRU 迭代次数</span>
+            <span class="param-value" id="itersVal">8</span>
+          </div>
+          <input type="range" class="slider" min="1" max="20" step="1" value="8" id="itersSlider">
+          <div class="param-range"><span>1 (快速)</span><span>20 (精确)</span></div>
+        </div>
+        <div class="param-row">
+          <div class="param-head">
+            <span class="param-label">有效深度范围</span>
+            <span class="param-value">0.3 ~ 1.5 m</span>
+          </div>
+          <input type="range" class="slider" min="0.1" max="5.0" step="0.1" value="1.5" id="maxDepthSlider">
+          <div class="param-range"><span>0.1m</span><span>5.0m</span></div>
+        </div>
+        <div class="param-row">
+          <div class="param-head">
+            <span class="param-label">体素滤波尺寸</span>
+            <span class="param-value" id="voxelVal">0.010 m</span>
+          </div>
+          <input type="range" class="slider" min="0.001" max="0.05" step="0.001" value="0.010" id="voxelSlider">
+          <div class="param-range"><span>1mm</span><span>50mm</span></div>
+        </div>
+        <div class="param-row">
+          <div class="param-head">
+            <span class="param-label">点云降采样</span>
+          </div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-dec="1">原始</button>
+            <button class="toggle-btn" data-dec="2">1/2</button>
+            <button class="toggle-btn" data-dec="4">1/4</button>
+            <button class="toggle-btn" data-dec="8">1/8</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 任务信息卡片 -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>当前任务</span>
+        </div>
+        <span class="card-status warn" id="taskStatusBadge">进行中</span>
+      </div>
+      <div class="card-body">
+        <div class="kv-grid">
+          <div class="kv-item"><span class="kv-label">任务编号</span><span class="kv-value accent">SCAN-2026-0719-01</span></div>
+          <div class="kv-item"><span class="kv-label">操作员</span><span class="kv-value">admin</span></div>
+          <div class="kv-item"><span class="kv-label">工件类型</span><span class="kv-value">机械零件</span></div>
+          <div class="kv-item"><span class="kv-label">目标精度</span><span class="kv-value">0.05 mm</span></div>
+          <div class="kv-item"><span class="kv-label">开始时间</span><span class="kv-value" id="taskStartVal">--:--:--</span></div>
+          <div class="kv-item"><span class="kv-label">已用时</span><span class="kv-value accent" id="taskElapsedVal">00:00:00</span></div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ============================================================
+       底部状态栏
+       ============================================================ -->
+  <footer class="bottombar">
+    <div class="task-badges">
+      <div class="task-badge done" title="SCAN-2026-0718-03 完成"></div>
+      <div class="task-badge done" title="SCAN-2026-0718-04 完成"></div>
+      <div class="task-badge done" title="SCAN-2026-0719-00 完成"></div>
+      <div class="task-badge active" title="SCAN-2026-0719-01 进行中"></div>
+    </div>
+    <div class="progressBar">
+      <span class="progressBar-label">FUSION</span>
+      <div class="progressBar-track">
+        <div class="progressBar-fill" id="fusionBar" style="width: 0%"></div>
+      </div>
+      <span class="progressBar-pct" id="fusionPct">0%</span>
+    </div>
+    <div class="bot-stats">
+      <div class="bot-stat">
+        <span class="bot-stat-label">FPS</span>
+        <span class="bot-stat-val accent" id="botFpsVal">0.0</span>
+      </div>
+      <div class="bot-stat">
+        <span class="bot-stat-label">FRAMES</span>
+        <span class="bot-stat-val" id="botFramesVal">0</span>
+      </div>
+      <div class="bot-stat">
+        <span class="bot-stat-label">POINTS</span>
+        <span class="bot-stat-val accent" id="botPtsVal">0</span>
+      </div>
+      <div class="bot-stat">
+        <span class="bot-stat-label">LOOPS</span>
+        <span class="bot-stat-val" id="botLoopsVal">0</span>
+      </div>
+    </div>
+    <div class="bot-stat">
+      <span class="bot-stat-label">Elapsed</span>
+      <span class="bot-stat-val" id="botElapsedVal">00:00:00</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// 1. 3D 点云渲染引擎 (纯 Canvas 2D 透视投影)
+// ============================================================
+(function() {
+  const canvas = document.getElementById('canvas3d');
+  const ctx = canvas.getContext('2d');
+
+  // 视角状态
+  const view = {
+    yaw: -0.6,        // 水平旋转
+    pitch: 0.4,       // 垂直旋转
+    distance: 4.0,    // 相机距离
+    targetYaw: -0.6,
+    targetPitch: 0.4,
+    targetDistance: 4.0
+  };
+
+  // 鼠标交互
+  let isDragging = false;
+  let lastX = 0, lastY = 0;
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // 生成示例点云: 雕像/机械零件形态(球+柱+面的混合)
+  let pointCloud = [];
+  function generatePointCloud() {
+    pointCloud = [];
+    // 工件主体: 一个椭球
+    for (let i = 0; i < 8000; i++) {
+      const theta = Math.acos(2 * Math.random() - 1);
+      const phi = Math.random() * Math.PI * 2;
+      const r = 0.95 + Math.random() * 0.05;
+      pointCloud.push({
+        x: r * 0.85 * Math.sin(theta) * Math.cos(phi),
+        y: r * 0.55 * Math.cos(theta) + 0.1,
+        z: r * 0.85 * Math.sin(theta) * Math.sin(phi),
+        baseColor: getColorByHeight(Math.cos(theta))
+      });
+    }
+    // 底座平面
+    for (let i = 0; i < 2500; i++) {
+      const r = Math.random() * 1.4;
+      const a = Math.random() * Math.PI * 2;
+      pointCloud.push({
+        x: r * Math.cos(a),
+        y: -0.45 + (Math.random() - 0.5) * 0.01,
+        z: r * Math.sin(a),
+        baseColor: [0.35, 0.42, 0.52]
+      });
+    }
+    // 顶部圆柱凸起
+    for (let i = 0; i < 2000; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const h = Math.random() * 0.35;
+      const r = 0.22;
+      pointCloud.push({
+        x: r * Math.cos(a),
+        y: 0.55 + h,
+        z: r * Math.sin(a),
+        baseColor: getColorByHeight((0.55+h)/1.0)
+      });
+    }
+    // 添加扫描状态下的"实时增长"点: 按角度分扇区,模拟正在扫的部分
+  }
+
+  function getColorByHeight(t) {
+    // viridis-like 色阶
+    t = Math.max(0, Math.min(1, t));
+    if (t < 0.25) return [0.27, 0.0, 0.33];
+    if (t < 0.5)  return [0.23, 0.32, 0.55];
+    if (t < 0.75) return [0.13, 0.57, 0.55];
+    return [0.65, 0.92, 0.15];
+  }
+
+  // 投影 3D -> 2D
+  function project(p) {
+    // 旋转: 先 yaw (绕Y轴), 再 pitch (绕X轴)
+    const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw);
+    const cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+
+    // 绕 Y 轴
+    let x1 = p.x * cy - p.z * sy;
+    let z1 = p.x * sy + p.z * cy;
+    let y1 = p.y;
+
+    // 绕 X 轴
+    let y2 = y1 * cp - z1 * sp;
+    let z2 = y1 * sp + z1 * cp;
+    let x2 = x1;
+
+    // 平移 (相机后退)
+    z2 += view.distance;
+
+    // 透视投影
+    const fov = 45 * Math.PI / 180;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const aspect = w / h;
+    const f = 1 / Math.tan(fov / 2);
+
+    if (z2 <= 0.1) return null;
+
+    const sx = (x2 * f / aspect) / z2 * (w / 2) + w / 2;
+    const sy_ = -(y2 * f) / z2 * (h / 2) + h / 2;
+
+    return { sx, sy: sy_, depth: z2 };
+  }
+
+  function drawGrid() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    // 网格地面 (Y=-0.5)
+    const gridSize = 2.0;
+    const gridStep = 0.2;
+    ctx.strokeStyle = 'rgba(60, 134, 229, 0.12)';
+    ctx.lineWidth = 1;
+
+    for (let x = -gridSize; x <= gridSize; x += gridStep) {
+      const p1 = project({x: x, y: -0.5, z: -gridSize});
+      const p2 = project({x: x, y: -0.5, z:  gridSize});
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.stroke();
+      }
+    }
+    for (let z = -gridSize; z <= gridSize; z += gridStep) {
+      const p1 = project({x: -gridSize, y: -0.5, z: z});
+      const p2 = project({x:  gridSize, y: -0.5, z: z});
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawAxes() {
+    // X 红, Y 绿, Z 蓝
+    const origin = project({x: 0, y: -0.48, z: 0});
+    const xAxis = project({x: 1.0, y: -0.48, z: 0});
+    const yAxis = project({x: 0, y: 0.52, z: 0});
+    const zAxis = project({x: 0, y: -0.48, z: 1.0});
+
+    if (!origin) return;
+    ctx.lineWidth = 2;
+    if (xAxis) {
+      ctx.strokeStyle = '#F85149';
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(xAxis.sx, xAxis.sy);
+      ctx.stroke();
+    }
+    if (yAxis) {
+      ctx.strokeStyle = '#3FB950';
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(yAxis.sx, yAxis.sy);
+      ctx.stroke();
+    }
+    if (zAxis) {
+      ctx.strokeStyle = '#3C86E5';
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(zAxis.sx, zAxis.sy);
+      ctx.stroke();
+    }
+  }
+
+  function drawPointCloud() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    // 投影 + 排序
+    const pts = [];
+    for (let i = 0; i < pointCloud.length; i++) {
+      const p = pointCloud[i];
+      const pr = project(p);
+      if (pr && pr.sx >= 0 && pr.sx <= w && pr.sy >= 0 && pr.sy <= h) {
+        pts.push({ x: pr.sx, y: pr.sy, depth: pr.depth, c: p.baseColor });
+      }
+    }
+    pts.sort((a, b) => b.depth - a.depth);
+
+    // 按深度绘制
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const fog = Math.max(0, Math.min(1, (8 - p.depth) / 8));
+      const r = Math.floor(p.c[0] * 255 * fog);
+      const g = Math.floor(p.c[1] * 255 * fog);
+      const b = Math.floor(p.c[2] * 255 * fog);
+      ctx.fillStyle = `rgba(${r},${g},${b},${0.7 * fog + 0.3})`;
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+    }
+  }
+
+  function drawBoundingBox() {
+    // 工件包围盒 (虚线)
+    const corners = [
+      {x:-1,y:-0.45,z:-1}, {x:1,y:-0.45,z:-1}, {x:1,y:0.95,z:-1}, {x:-1,y:0.95,z:-1},
+      {x:-1,y:-0.45,z:1}, {x:1,y:-0.45,z:1}, {x:1,y:0.95,z:1}, {x:-1,y:0.95,z:1}
+    ];
+    const proj = corners.map(project);
+    const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+
+    ctx.strokeStyle = 'rgba(0, 212, 255, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    for (const [a, b] of edges) {
+      if (proj[a] && proj[b]) {
+        ctx.beginPath();
+        ctx.moveTo(proj[a].sx, proj[a].sy);
+        ctx.lineTo(proj[b].sx, proj[b].sy);
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+  }
+
+  // 视角信息更新
+  function updateViewInfo() {
+    const camPosVal = document.getElementById('camPosVal');
+    if (camPosVal) {
+      const r = view.distance;
+      const x = (r * Math.sin(view.pitch) * Math.sin(view.yaw)).toFixed(1);
+      const y = (r * Math.cos(view.pitch)).toFixed(1);
+      const z = (r * Math.sin(view.pitch) * Math.cos(view.yaw)).toFixed(1);
+      camPosVal.textContent = `${x}, ${y}, ${z}`;
+    }
+    const zoomVal = document.getElementById('zoomVal');
+    if (zoomVal) zoomVal.textContent = (4.0 / view.distance).toFixed(2) + '×';
+  }
+
+  let lastFrameTime = performance.now();
+  let frameCount = 0;
+  let fps = 60;
+
+  function render() {
+    const now = performance.now();
+    const dt = now - lastFrameTime;
+    lastFrameTime = now;
+    frameCount++;
+    if (frameCount % 10 === 0) {
+      fps = Math.round(1000 / dt);
+      const el = document.getElementById('renderFpsVal');
+      if (el) el.textContent = `${fps} FPS`;
+    }
+
+    // 平滑插值视角
+    view.yaw += (view.targetYaw - view.yaw) * 0.12;
+    view.pitch += (view.targetPitch - view.pitch) * 0.12;
+    view.distance += (view.targetDistance - view.distance) * 0.12;
+
+    ctx.fillStyle = 'rgba(6, 8, 9, 1)';
+    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    drawGrid();
+    drawBoundingBox();
+    drawAxes();
+    drawPointCloud();
+
+    updateViewInfo();
+    requestAnimationFrame(render);
+  }
+
+  // 鼠标交互
+  canvas.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    view.targetYaw += dx * 0.008;
+    view.targetPitch += dy * 0.008;
+    view.targetPitch = Math.max(-1.4, Math.min(1.4, view.targetPitch));
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    view.targetDistance += e.deltaY * 0.005;
+    view.targetDistance = Math.max(1.5, Math.min(10, view.targetDistance));
+  }, { passive: false });
+
+  document.getElementById('btnResetView').addEventListener('click', () => {
+    view.targetYaw = -0.6;
+    view.targetPitch = 0.4;
+    view.targetDistance = 4.0;
+  });
+
+  // 初始化
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+  generatePointCloud();
+  render();
+})();
+
+// ============================================================
+// 2. 双目预览 + 深度图 渲染
+// ============================================================
+(function() {
+  const canvases = {
+    left: document.getElementById('canvasLeft'),
+    right: document.getElementById('canvasRight'),
+    depth: document.getElementById('canvasDepth')
+  };
+  const ctxs = {
+    left: canvases.left.getContext('2d'),
+    right: canvases.right.getContext('2d'),
+    depth: canvases.depth.getContext('2d')
+  };
+
+  function resizeAll() {
+    Object.keys(canvases).forEach(k => {
+      const c = canvases[k];
+      const dpr = window.devicePixelRatio || 1;
+      const rect = c.getBoundingClientRect();
+      c.width = rect.width * dpr;
+      c.height = rect.height * dpr;
+      ctxs[k].setTransform(dpr, 0, 0, dpr, 0, 0);
+    });
+  }
+
+  // 绘制一个机械零件轮廓(校正后的"扫描物体"), shift 模拟左右目视差
+  function drawScene(ctx, canvas, opts) {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    ctx.fillStyle = '#050709';
+    ctx.fillRect(0, 0, w, h);
+
+    // 背景径向暗光
+    const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/1.5);
+    grad.addColorStop(0, 'rgba(30, 40, 55, 0.4)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    const shift = opts.shift || 0;
+    const cx = w / 2 + shift;
+    const cy = h / 2 + 10;
+
+    // 桌面平面 (横线)
+    ctx.strokeStyle = 'rgba(80, 100, 130, 0.18)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 8; i++) {
+      const y = cy + 30 + i * 12;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // 工件主体: 椭球 + 顶部凸台
+    ctx.fillStyle = 'rgba(180, 190, 200, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 90, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 顶部凸台
+    ctx.fillStyle = 'rgba(200, 210, 220, 0.9)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 30, 28, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 25, cy - 30, 50, 12);
+
+    // 高光
+    const hl = ctx.createRadialGradient(cx - 25, cy - 15, 0, cx - 25, cy - 15, 50);
+    hl.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+    hl.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = hl;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 90, 50, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 阴影
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 55, 70, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 标定点(棋盘格角点)
+    if (opts.showCorners) {
+      ctx.fillStyle = 'rgba(0, 212, 255, 0.8)';
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          ctx.beginPath();
+          ctx.arc(20 + i * 15, 20 + j * 15, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // 深度图渲染: 用 TURBO 色阶
+  function turbo(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 3))));
+    const g = Math.floor(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 2))));
+    const b = Math.floor(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 1))));
+    return [r, g, b];
+  }
+
+  function drawDepth(ctx, canvas) {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2 + 10;
+
+    // 用 imageData 逐像素绘制深度图模拟
+    const img = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dx = x - cx;
+        const dy = y - cy;
+        // 工件椭球区域
+        const ellip = (dx*dx)/(90*90) + (dy*dy)/(50*50);
+        if (ellip < 1) {
+          const t = 1 - Math.sqrt(ellip);  // 中心更近 → t 高
+          const depth = 0.35 + (1 - t) * 0.4;
+          const norm = (depth - 0.3) / (1.5 - 0.3);
+          const [r, g, b] = turbo(1 - norm);
+          const i = (y * w + x) * 4;
+          img.data[i] = r;
+          img.data[i+1] = g;
+          img.data[i+2] = b;
+          img.data[i+3] = 255;
+        } else {
+          // 桌面区域(远)
+          if (dy > 30 && dy < 90) {
+            const [r, g, b] = turbo(0.15);
+            const i = (y * w + x) * 4;
+            img.data[i] = r * 0.3;
+            img.data[i+1] = g * 0.3;
+            img.data[i+2] = b * 0.3;
+            img.data[i+3] = 255;
+          }
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  let phase = 0;
+  function animate() {
+    phase += 0.05;
+    // 左右目有视差 (右目往左偏 ~8px)
+    drawScene(ctxs.left,  canvases.left,  {shift: -4, showCorners: false});
+    drawScene(ctxs.right, canvases.right, {shift: 4,  showCorners: false});
+    drawDepth(ctxs.depth, canvases.depth);
+    requestAnimationFrame(animate);
+  }
+
+  window.addEventListener('resize', resizeAll);
+  resizeAll();
+  animate();
+})();
+
+// ============================================================
+// 3. 状态机: 扫描模拟运行
+// ============================================================
+(function() {
+  const state = {
+    running: true,
+    startTime: Date.now(),
+    frames: 0,
+    fps: 0,
+    totalPoints: 0,
+    loopClosures: 0,
+    fusionProgress: 0,
+    gpu: 62,
+    vram: 4.8,
+    temp: 68,
+    trt: 28,
+    depthRangeMin: 0.35,
+    depthRangeMax: 1.19,
+    lastFrameTime: performance.now(),
+    fpsWindow: []
+  };
+
+  function fmtNum(n) {
+    if (n >= 1000000) return (n/1000000).toFixed(2) + 'M';
+    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+    return n.toString();
+  }
+  function fmtTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const hh = String(Math.floor(s/3600)).padStart(2,'0');
+    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  function fmtClock(d) {
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const ss = String(d.getSeconds()).padStart(2,'0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  function fmtFrame(n) {
+    return '#' + String(n).padStart(6, '0');
+  }
+
+  function tick() {
+    const now = performance.now();
+    const dt = now - state.lastFrameTime;
+    state.lastFrameTime = now;
+
+    // FPS 滑窗
+    state.fpsWindow.push(dt);
+    if (state.fpsWindow.length > 30) state.fpsWindow.shift();
+    const avgDt = state.fpsWindow.reduce((a,b)=>a+b, 0) / state.fpsWindow.length;
+    state.fps = 1000 / avgDt;
+
+    if (state.running) {
+      // 模拟每帧增量
+      const inc = Math.max(1, Math.round(state.fps / 30));
+      state.frames += inc;
+      const newPts = Math.floor(5500 + Math.random() * 200);
+      state.totalPoints += newPts;
+      state.fusionProgress = Math.min(100, state.fusionProgress + 0.05 * inc);
+
+      // 模拟回环
+      if (Math.random() < 0.002 * inc) {
+        state.loopClosures++;
+        flashLoopDetection();
+      }
+
+      // 系统监控抖动
+      state.gpu = 58 + Math.sin(now/2000) * 6 + Math.random()*3;
+      state.temp = 66 + Math.sin(now/3000) * 4 + Math.random()*2;
+      state.trt = 26 + Math.random() * 5;
+
+      // 深度范围抖动
+      state.depthRangeMin = 0.32 + Math.random() * 0.06;
+      state.depthRangeMax = 1.15 + Math.random() * 0.08;
+    }
+
+    // 更新UI
+    setText('curFrameVal', fmtFrame(state.frames));
+    setText('framePtsVal', fmtNum(Math.floor(5500 + Math.random()*200)));
+    setText('totalPtsVal', fmtNum(state.totalPoints));
+    setText('loopVal', state.loopClosures);
+
+    setText('gpuVal', Math.round(state.gpu) + '%');
+    setText('tempVal', Math.round(state.temp) + '°C');
+    setText('trtVal', Math.round(state.trt) + 'ms');
+
+    setText('botFpsVal', state.fps.toFixed(1));
+    setText('botFramesVal', fmtNum(state.frames));
+    setText('botPtsVal', fmtNum(state.totalPoints));
+    setText('botLoopsVal', state.loopClosures);
+
+    const elapsed = Date.now() - state.startTime;
+    setText('botElapsedVal', fmtTime(elapsed));
+    setText('taskElapsedVal', fmtTime(elapsed));
+
+    document.getElementById('fusionBar').style.width = state.fusionProgress + '%';
+    setText('fusionPct', state.fusionProgress.toFixed(1) + '%');
+
+    // 系统监控颜色阈值
+    const gpuEl = document.getElementById('gpuVal');
+    gpuEl.className = 'sys-value ' + (state.gpu > 85 ? 'amber' : 'green');
+    const tempEl = document.getElementById('tempVal');
+    tempEl.className = 'sys-value ' + (state.temp > 80 ? 'amber' : (state.temp > 75 ? 'amber' : ''));
+
+    document.getElementById('depthRangeVal').textContent =
+      state.depthRangeMin.toFixed(2) + '~' + state.depthRangeMax.toFixed(2) + 'm';
+
+    requestAnimationFrame(tick);
+  }
+
+  function setText(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  }
+
+  function flashLoopDetection() {
+    const el = document.getElementById('loopVal');
+    if (!el) return;
+    el.style.color = '#FFB454';
+    el.style.transition = 'color 0.3s';
+    setTimeout(() => { el.style.color = ''; }, 600);
+  }
+
+  // 时钟独立刷新
+  setInterval(() => {
+    setText('clock', fmtClock(new Date()));
+    if (!state.startTimeSet) {
+      const d = new Date(Date.now() - 5000);
+      setText('taskStartVal', fmtClock(d));
+      state.startTimeSet = true;
+    }
+  }, 1000);
+
+  // 按钮交互
+  const btnStart = document.getElementById('btnStart');
+  const btnStartLabel = document.getElementById('btnStartLabel');
+  const recIndicator = document.getElementById('recIndicator');
+  const recLabel = document.getElementById('recLabel');
+  const scanStatusBadge = document.getElementById('scanStatusBadge');
+
+  btnStart.addEventListener('click', () => {
+    state.running = !state.running;
+    if (state.running) {
+      btnStartLabel.textContent = '暂停扫描';
+      recIndicator.classList.remove('idle');
+      recLabel.textContent = '扫描中';
+      scanStatusBadge.textContent = '运行中';
+      scanStatusBadge.className = 'card-status ok';
+    } else {
+      btnStartLabel.textContent = '继续扫描';
+      recIndicator.classList.add('idle');
+      recLabel.textContent = '已暂停';
+      scanStatusBadge.textContent = '已暂停';
+      scanStatusBadge.className = 'card-status warn';
+    }
+  });
+
+  document.getElementById('btnStop').addEventListener('click', () => {
+    state.running = false;
+    btnStartLabel.textContent = '开始扫描';
+    recIndicator.classList.add('idle');
+    recLabel.textContent = '已停止';
+    scanStatusBadge.textContent = '已停止';
+    scanStatusBadge.className = 'card-status warn';
+  });
+
+  document.getElementById('btnLoop').addEventListener('click', () => {
+    state.loopClosures++;
+    flashLoopDetection();
+  });
+
+  document.getElementById('btnPause').addEventListener('click', () => btnStart.click());
+
+  document.getElementById('btnExport').addEventListener('click', () => {
+    const btn = document.getElementById('btnExport');
+    const orig = btn.querySelector('span').textContent;
+    btn.querySelector('span').textContent = '导出中 ...';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.querySelector('span').textContent = '导出完成 ✓';
+      setTimeout(() => {
+        btn.querySelector('span').textContent = orig;
+        btn.disabled = false;
+      }, 1500);
+    }, 1000);
+  });
+
+  // 参数滑杆联动
+  function bindSlider(sliderId, valueId, fmt) {
+    const slider = document.getElementById(sliderId);
+    const valEl = document.getElementById(valueId);
+    slider.addEventListener('input', () => {
+      valEl.textContent = fmt(slider.value);
+    });
+  }
+  bindSlider('dispMaxSlider', 'dispMaxVal', v => v);
+  bindSlider('itersSlider', 'itersVal', v => v);
+  bindSlider('maxDepthSlider', 'maxDepthSlider', v => v + ' m');
+  bindSlider('voxelSlider', 'voxelVal', v => parseFloat(v).toFixed(3) + ' m');
+
+  // toggle 组
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.parentElement;
+      group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // 初始化按钮 label
+  btnStartLabel.textContent = '暂停扫描';
+  taskStartSet = false;
+
+  tick();
+})();
+</script>
+</body>
+</html>

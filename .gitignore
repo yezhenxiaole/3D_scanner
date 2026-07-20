@@ -1,0 +1,85 @@
+# ============================================================
+# NEXUS-3D 项目 .gitignore
+# ============================================================
+
+# === 构建输出 (所有子项目) ===
+build/
+out/
+x64/
+x86/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# === Visual Studio ===
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.pdb
+*.ilk
+*.obj
+*.exp
+ipch/
+*.opensdf
+*.sdf
+*.vc.db
+*.vc.opendb
+
+# === CMake / Ninja 中间产物 ===
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+.ninja_deps
+.ninja_log
+*.ninja
+
+# === vcpkg 生成目录 (依赖可重新安装) ===
+vcpkg_installed/
+vcpkg/
+vcpkg.json.bak
+vcpkg_install_*.log
+
+# === 第三方库的可执行工具 / DLL（不提交） ===
+**/downloads/
+**/buildtrees/
+**/packages/
+vcpkg.exe
+
+# === RTAB-Map install 产物 ===
+**/install/
+
+# === 运行时 DLL 复制目录 ===
+**/bin/*.dll
+
+# === 示例媒体文件（不必要） ===
+*.mp4
+*.avi
+
+# === Python 缓存 ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# === 运行时产生的目录 ===
+**/.temp/
+**/output/
+calibration_capture/
+
+# === TensorRT / 大模型文件 ===
+timing_cache.bin
+*.engine
+*.onnx
+weights/
+*.pth
+**/demo_data/
+
+# === 系统文件 ===
+Thumbs.db
+.DS_Store
+*.swp
+*.swo

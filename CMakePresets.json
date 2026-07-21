@@ -1,0 +1,62 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "vs2026-release",
+      "displayName": "VS2026 Release (RTX 5060 sm_120)",
+      "description": "NEXUS-3D: CUDA 13.3 + Qt 6.11.1 + TensorRT 10.16.1.11 + RTAB-Map",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/stereo_scanner/build_vs2026",
+      "installDir": "${sourceDir}/stereo_scanner/build_vs2026",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CUDA_ARCHITECTURES": "80;86;89;90;120",
+        "CMAKE_PREFIX_PATH": "E:/nzy/Qt_6.11/6.11.1/msvc2022_64",
+        "RTABMAP_DIR": "${sourceDir}/3rdparty/rtabmap/build_vs2026/install",
+        "TENSORRT_ROOT": "E:/nzy/TensorRT-10.16.1.11",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/3rdparty/vcpkg_installed",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/3rdparty/rtabmap/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": ["Windows"],
+          "intelliSenseMode": "windows-msvc-x64"
+        }
+      }
+    },
+    {
+      "name": "vs2026-debug",
+      "displayName": "VS2026 Debug (RTX 5060 sm_120)",
+      "description": "NEXUS-3D Debug build - slower but debuggable",
+      "inherits": "vs2026-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2026-release",
+      "configurePreset": "vs2026-release",
+      "jobs": 20
+    },
+    {
+      "name": "vs2026-debug",
+      "configurePreset": "vs2026-debug",
+      "jobs": 20
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "vs2026-release",
+      "configurePreset": "vs2026-release"
+    }
+  ]
+}

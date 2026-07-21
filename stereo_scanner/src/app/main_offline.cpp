@@ -18,6 +18,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
+#include <cstdio>
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
@@ -192,6 +193,8 @@ static cv::Mat depthToColorMap(const cv::Mat& depth, float maxDepth = 5.0f) {
 // 主流程
 // ============================================================================
 int main(int argc, char** argv) {
+    setvbuf(stdout, nullptr, _IONBF, 0);  // Disable stdout buffering for reliable log capture
+
     OfflineArgs args = parseArgs(argc, argv);
 
     std::cout << "========================================\n"

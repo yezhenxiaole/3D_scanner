@@ -258,7 +258,8 @@ RightPanel::RightPanel(QWidget* parent)
             lbVoxelSize_->setText(QString::number(v));
             emit voxelSizeChanged(v);
         });
-        connect(bg, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
+        // Qt6: QButtonGroup::buttonClicked(int) removed, use idClicked (fn-ptr, no cast)
+        connect(bg, &QButtonGroup::idClicked,
                 [this](int id) {
             emit depthVisualModeChanged(id);
         });

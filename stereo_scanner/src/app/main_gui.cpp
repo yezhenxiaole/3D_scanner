@@ -60,13 +60,17 @@ static Args parseArgs(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
-    // Qt 高 DPI
+    // Qt 高 DPI - Qt5 需显式启用；Qt6 默认开启且属性已废弃
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 
     // 强制使用 Desktop OpenGL 而非 ANGLE (D3D)
     // ANGLE 有 QOpenGLWidget 与兄弟 widget 合成的已知问题 (GL 内容覆盖邻近面板)
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
+#endif
+    // Qt6 说明: QOpenGLWidget 使用原生 OpenGL (不走 RHI); AA_UseDesktopOpenGL 已废弃,
+    // Qt6 在 Windows 默认用 desktop GL, 不再 fallback 到 ANGLE, 故无需显式设置
 
     // 共享 OpenGL 上下文 (QOpenGLWidget 之间共享)
     QSurfaceFormat fmt;

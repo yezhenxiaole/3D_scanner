@@ -17,7 +17,10 @@ FFS 模型导出脚本 — 一次性执行: 下载权重 → 导出 ONNX → 编
   # 4. 使用 trtexec (推荐, 更快)
   python export_ffs_engine.py --step onnx --model_dir <path> --output_dir models/ffs_engine
   # 然后手动:
-  trtexec --onnx=models/ffs_engine/fast_foundationstereo.onnx --saveEngine=models/ffs_engine/fast_foundationstereo.engine --fp16
+  trtexec --onnx=models/ffs_engine/fast_foundationstereo.onnx --saveEngine=models/ffs_engine/fast_foundationstereo.engine
+
+注意: 默认使用 FP32 精度。FP16 在 Fast-FoundationStereo 模型上会产生全 NaN 输出
+(数值溢出), 不要使用 --fp16 除非已验证特定模型版本兼容。
 
 依赖: 3D_scanner conda 环境 (Python 3.12, torch, onnx, tensorrt)
 """
@@ -95,7 +98,7 @@ def step_onnx(ffs_repo: Path, model_dir: str, output_dir: str,
     return onnx_path
 
 
-def step_trt(onnx_path: str, output_dir: str, fp16: bool = True,
+def step_trt(onnx_path: str, output_dir: str, fp16: bool = False,
              workspace_mb: int = 4096, use_trtexec: bool = True,
              plugin_lib: str = "") -> str:
     """Step 2: 编译 TensorRT 引擎"""
@@ -113,7 +116,7 @@ def step_trt(onnx_path: str, output_dir: str, fp16: bool = True,
                 trtexec_cmd,
                 f"--onnx={onnx_path}",
                 f"--saveEngine={engine_path}",
-                f"--workspace={workspace_mb}",
+                f"--memPoolSize=workspace:{workspace_mb}M",
             ]
             if fp16:
                 cmd.append("--fp16")
@@ -174,7 +177,8 @@ def step_trt(onnx_path: str, output_dir: str, fp16: bool = True,
 
     raise RuntimeError(
         f"Failed to build TRT engine. Try manually:\n"
-        f"  trtexec --onnx={onnx_path} --saveEngine={engine_path} --fp16"
+        f"  trtexec --onnx={onnx_path} --saveEngine={engine_path}\n"
+        f"(FP32 is recommended; FP16 produces all-NaN output on this model)"
     )
 
 
@@ -182,8 +186,8 @@ def _find_trtexec() -> str:
     """查找 trtexec 可执行文件"""
     # Windows - 常见安装位置 (含当前环境路径)
     for p in [
-        "E:/nzy/TensorRT-10.13.0/bin/trtexec.exe",
-        "E:/nzy/TensorRT-10.13.0/trtexec.exe",
+        "E:/nzy/TensorRT-10.16.1.11/bin/trtexec.exe",
+        "E:/nzy/TensorRT-10.16.1.11/trtexec.exe",
         "C:/TensorRT/bin/trtexec.exe",
         "C:/TensorRT-10/bin/trtexec.exe",
     ]:
@@ -238,10 +242,10 @@ def main():
                         help='最大视差搜索范围')
     parser.add_argument('--valid_iters', type=int, default=8,
                         help='GRU迭代次数 (离线8, 实时4)')
-    parser.add_argument('--fp16', action='store_true', default=True,
-                        help='启用 FP16 (默认开启)')
-    parser.add_argument('--fp32', action='store_true',
-                        help='强制 FP32')
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='启用 FP16 (不推荐: 此模型 FP16 会产生全 NaN 输出)')
+    parser.add_argument('--fp32', action='store_true', default=True,
+                        help='强制 FP32 (默认, 推荐)')
     parser.add_argument('--workspace_mb', type=int, default=4096,
                         help='TRT workspace 内存限制(MiB)')
     # K.txt 参数 (可选, 用于生成 FFS 的相机内参文件)
@@ -260,7 +264,14 @@ def main():
     if args.height % 32 != 0 or args.width % 32 != 0:
         raise ValueError(f"height={args.height} and width={args.width} must be divisible by 32")
 
-    fp16 = not args.fp32
+    fp16 = args.fp16
+    if fp16:
+        log.warning("=" * 60)
+        log.warning("WARNING: FP16 mode enabled!")
+        log.warning("Fast-FoundationStereo FP16 engines produce ALL-NaN output")
+        log.warning("due to numerical overflow. FP32 is strongly recommended.")
+        log.warning("Only use FP16 if you have verified it works for your model.")
+        log.warning("=" * 60)
 
     ffs_repo = find_ffs_repo()
     log.info(f"FFS repo: {ffs_repo}")

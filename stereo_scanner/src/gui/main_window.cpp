@@ -95,9 +95,8 @@ MainWindow::MainWindow(QWidget* parent)
     // ---- right panel ----
     right_ = new RightPanel;
     right_->setMinimumWidth(336);   // hard guarantee 336px (defensive)
-    // FIX: QOpenGLWidget 在 Qt5/Win 下会创建 native 子窗口覆盖兄弟 widget。
-    // 将 right_ 设为 native window 并 raise() 以保证它绘制在 GL widget 之上。
-    right_->setAttribute(Qt::WA_NativeWindow);
+    // Qt6: WA_NativeWindow removed - Qt6 RHI compositing handles layering.
+    // right_->setAttribute(Qt::WA_NativeWindow);
     grid->addWidget(right_, 1, 2);
     right_->raise();
 
@@ -334,7 +333,11 @@ void MainWindow::buildMainArea(QWidget* host) {
     // The container's HWND becomes a hard clip boundary for the GL child window.
     auto* glHost = new QWidget;
     glHost->setObjectName("GLHost");
-    glHost->setAttribute(Qt::WA_NativeWindow);
+    // Qt6: WA_NativeWindow removed - Qt6 uses RHI compositing, not native HWND.
+    // WA_NativeWindow causes "QOpenGLWidget: No fbo, cannot render" in Qt6
+    // because it creates a separate QWidgetWindow with its own RHI context
+    // that is incompatible with QOpenGLWidget's FBO creation.
+    // glHost->setAttribute(Qt::WA_NativeWindow);
     glHost->setStyleSheet("background: #0B0E13; border: none;");
     auto* glLayout = new QVBoxLayout(glHost);
     glLayout->setContentsMargins(0, 0, 0, 0);

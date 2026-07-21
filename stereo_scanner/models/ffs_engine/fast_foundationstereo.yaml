@@ -1,0 +1,8 @@
+# Fast FoundationStereo single-engine config
+# Model input: 1x3x320x736 fp32 (ImageNet-normalized)
+# Output: 1x1x320x736 fp32 disparity
+image_size: [320, 736]
+max_disp: 192
+cv_group: 8
+valid_iters: 8
+normalize: true

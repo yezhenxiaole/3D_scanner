@@ -15,10 +15,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # ---------------------------------------------------------------------------
-# CUDA 架构（适配 RTX 5060 = sm_89）
+# CUDA 架构（适配 RTX 5060 = sm_120 Blackwell）
 # ---------------------------------------------------------------------------
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-  set(CMAKE_CUDA_ARCHITECTURES "80;86;89;90" CACHE STRING "" FORCE)
+  set(CMAKE_CUDA_ARCHITECTURES "80;86;89;90;120" CACHE STRING "" FORCE)
 endif()
 
 add_compile_options(
@@ -36,15 +36,15 @@ if(MSVC)
 endif()
 
 # ---------------------------------------------------------------------------
-# Qt5 (for stereo_gui)
+# Qt6 (for stereo_gui)
 # ---------------------------------------------------------------------------
-find_package(Qt5 QUIET COMPONENTS Widgets OpenGL)
-if(Qt5_FOUND)
-  message(STATUS "Qt5 version: ${Qt5Core_VERSION} found at ${Qt5_DIR}")
-  set(QT5_FOUND 1)
+find_package(Qt6 QUIET COMPONENTS Widgets OpenGL OpenGLWidgets)
+if(Qt6_FOUND)
+  message(STATUS "Qt6 version: ${Qt6Core_VERSION} found at ${Qt6_DIR}")
+  set(QT6_FOUND 1)
 else()
-  message(WARNING "Qt5 not found - stereo_gui target will be skipped.")
-  set(QT5_FOUND 0)
+  message(WARNING "Qt6 not found - stereo_gui target will be skipped.")
+  set(QT6_FOUND 0)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@ endif()
 # 可执行文件: Qt GUI 主界面
 # ---------------------------------------------------------------------------
 # stereo_gui target marker
-if(QT5_FOUND AND FFS_FOUND AND RTABMAP_FOUND)
+if(QT6_FOUND AND FFS_FOUND AND RTABMAP_FOUND)
   # 自动 MOC/UIC/RCC
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_AUTOUIC ON)
@@ -292,8 +292,9 @@ if(QT5_FOUND AND FFS_FOUND AND RTABMAP_FOUND)
   )
   target_include_directories(stereo_gui PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${Qt5Widgets_INCLUDE_DIRS}
-    ${Qt5OpenGL_INCLUDE_DIRS}
+    ${Qt6Widgets_INCLUDE_DIRS}
+    ${Qt6OpenGL_INCLUDE_DIRS}
+    ${Qt6OpenGLWidgets_INCLUDE_DIRS}
     ${NVINFER_INCLUDE_DIR}
     ${RTABMAP_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
@@ -307,20 +308,21 @@ if(QT5_FOUND AND FFS_FOUND AND RTABMAP_FOUND)
     scanner_stereo
     scanner_slam
     ${OpenCV_LIBS}
-    Qt5::Widgets
-    Qt5::OpenGL
+    Qt6::Widgets
+    Qt6::OpenGL
+    Qt6::OpenGLWidgets
   )
-  # Windows: 拷贝 Qt5 DLL 到输出目录
+  # Windows: 拷贝 Qt6 DLL 到输出目录
   if(WIN32)
     add_custom_command(TARGET stereo_gui POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_directory
-              "${Qt5_DIR}/../../../plugins"
+              "${Qt6_DIR}/../../../plugins"
               "$<TARGET_FILE_DIR:stereo_gui>/plugins"
-      COMMENT "Copying Qt5 plugins to output"
+      COMMENT "Copying Qt6 plugins to output"
     )
   endif()
 else()
-  message(WARNING "Skipping stereo_gui: requires Qt5 + FFS + RTAB-Map.")
+  message(WARNING "Skipping stereo_gui: requires Qt6 + FFS + RTAB-Map.")
 endif()
 
 # ---------------------------------------------------------------------------

@@ -503,19 +503,19 @@ void PointCloudWidget::mousePressEvent(QMouseEvent* e) {
     if (e->button() == Qt::LeftButton) {
         dragging_  = true;
         panning_   = false;
-        lastMousePos_ = e->pos();
+        lastMousePos_ = e->position();
     } else if (e->button() == Qt::RightButton) {
         panning_ = true;
         dragging_ = false;
-        lastMousePos_ = e->pos();
+        lastMousePos_ = e->position();
     }
     setCursor(dragging_ ? Qt::ClosedHandCursor :
               panning_  ? Qt::SizeAllCursor : Qt::ArrowCursor);
 }
 
 void PointCloudWidget::mouseMoveEvent(QMouseEvent* e) {
-    QPointF delta = e->pos() - lastMousePos_;
-    lastMousePos_ = e->pos();
+    QPointF delta = e->position() - lastMousePos_;
+    lastMousePos_ = e->position();
 
     if (dragging_) {
         targetYaw_   += delta.x() * 0.008f;

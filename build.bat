@@ -10,11 +10,36 @@ rem   2. Visual Studio 2026 installed
 rem   3. CUDA Toolkit >= 13.3 installed
 rem   4. TensorRT 10.16.1.11 downloaded
 rem   5. Qt 6.11.1 msvc2022_64 installed
+rem   6. vcpkg downloads cache copied to 3rdparty\rtabmap\vcpkg\downloads\
+rem      OR set HTTP_PROXY environment variable for proxy access
 rem
 rem This script replaces the old build.bat (VS2022 + Qt5 + CUDA 12.x)
 rem ============================================================
 
 title NEXUS-3D Build VS2026
+
+rem ---- Unset VCPKG_ROOT to avoid conflict with VS-bundled vcpkg ----
+set "VCPKG_ROOT="
+
+rem ---- Ensure PowerShell 7+ is in PATH for vcpkg ----
+where pwsh >nul 2>&1
+if errorlevel 1 (
+    set "PWSH_DIR=%LOCALAPPDATA%\Microsoft\WindowsApps"
+    if exist "%PWSH_DIR%\pwsh.exe" (
+        set "PATH=%PWSH_DIR%;%PATH%"
+    )
+)
+
+rem ---- Set proxy for vcpkg downloads if HTTP_PROXY not already set ----
+rem     vcpkg needs to download from GitHub/GitLab which may require a proxy
+rem     Auto-detect Clash on common ports, or use env var HTTP_PROXY
+if not defined HTTP_PROXY (
+    set "HTTP_PROXY=http://127.0.0.1:7897"
+    set "HTTPS_PROXY=http://127.0.0.1:7897"
+)
+if not defined HTTPS_PROXY (
+    set "HTTPS_PROXY=%HTTP_PROXY%"
+)
 
 rem ---- Parameter parsing (--tensorrt overrides env var) ----
 :parse_args
@@ -83,14 +108,14 @@ set "VCPKG_TOOLCHAIN=%RTABMAP_SRC%\vcpkg\scripts\buildsystems\vcpkg.cmake"
 set "TRIPLET=x64-windows-release"
 set "Qt6_DIR=%Qt6_DIR%"
 if not defined Qt6_DIR (
-    set /p "Qt6_DIR=Enter Qt6 msvc2022_64 path (e.g. G:\nzy\Qt_6.11\6.11.1\msvc2022_64): "
+    set /p "Qt6_DIR=Enter Qt6 msvc2022_64 path: "
 ) else (
     echo [v] Qt6_DIR from environment: %Qt6_DIR%
 )
 
 rem ---- 2.5 TensorRT path (env var TENSORRT_ROOT or --tensorrt arg or interactive) ----
 if not defined TENSORRT_ROOT (
-    set /p "TENSORRT_ROOT=Enter TensorRT root path (e.g. G:\nzy\TensorRT-10.16.1.11): "
+    set /p "TENSORRT_ROOT=Enter TensorRT root path: "
 ) else (
     echo [v] TENSORRT_ROOT from environment: %TENSORRT_ROOT%
 )
@@ -112,11 +137,41 @@ if not exist "%Qt6_DIR%\lib\Qt6Widgets.lib" (
 )
 echo [v] Qt6: %Qt6_DIR%
 
-rem ---- 3. Verify vcpkg ----
+rem ---- 3. Verify vcpkg tool + installed dependencies ----
+set "VCPKG_EXE=%RTABMAP_SRC%\vcpkg\vcpkg.exe"
 set "VCPKG_INC=%ROOT_DIR%3rdparty\vcpkg_installed\%TRIPLET%\include"
+
+rem 3a. Check vcpkg tool exists, bootstrap if missing
+if not exist "%VCPKG_EXE%" (
+    echo.
+    echo [2/6] vcpkg tool not found, cloning and bootstrapping...
+    where git >nul 2>&1
+    if errorlevel 1 (
+        echo [X] git not found in PATH. Install Git or clone vcpkg manually.
+        pause
+        exit /b 1
+    )
+    git clone https://github.com/microsoft/vcpkg.git "%RTABMAP_SRC%\vcpkg"
+    if errorlevel 1 (
+        echo [X] git clone vcpkg failed!
+        pause
+        exit /b 1
+    )
+    call "%RTABMAP_SRC%\vcpkg\bootstrap-vcpkg.bat"
+    if errorlevel 1 (
+        echo [X] vcpkg bootstrap failed!
+        pause
+        exit /b 1
+    )
+    echo [v] vcpkg tool bootstrapped
+) else (
+    echo [v] vcpkg tool found
+)
+
+rem 3b. Check installed dependencies, install if missing
 if not exist "%VCPKG_INC%\opencv4\opencv2\core.hpp" (
     echo.
-    echo [2/6] Installing vcpkg dependencies (first time, 6-10 hours)...
+    echo [2.5/6] Installing vcpkg dependencies, first time, 6-10 hours...
     pushd "%RTABMAP_SRC%"
     call vcpkg\vcpkg.exe install --triplet %TRIPLET% --x-install-root=..\vcpkg_installed
     if errorlevel 1 (

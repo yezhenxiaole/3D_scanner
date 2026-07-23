@@ -77,6 +77,21 @@ if not defined VCINSTALLDIR (
 )
 echo [v] Visual Studio: %VisualStudioVersion%  MSVC: %VCToolsVersion%
 
+rem ---- 0.2 Ensure correct CUDA version in PATH ----
+rem     If CUDA_PATH points to v13.x but an older CUDA is earlier in PATH, fix it
+if defined CUDA_PATH (
+    where nvcc >nul 2>&1
+    for /f "tokens=*" %%v in ('where nvcc 2^>nul') do set "NVCC_FIRST=%%v"
+    if defined NVCC_FIRST (
+        echo %NVCC_FIRST% | findstr /C:"%CUDA_PATH%" >nul
+        if errorlevel 1 (
+            echo [!] nvcc in PATH does not match CUDA_PATH, prepending %CUDA_PATH%\bin
+            set "PATH=%CUDA_PATH%\bin;%PATH%"
+        )
+    )
+)
+echo [v] Visual Studio: %VisualStudioVersion%  MSVC: %VCToolsVersion%
+
 rem ---- 0.1 Check cmake (after vcvars64 so VS-bundled cmake/ninja are available) ----
 where cmake >nul 2>&1
 if errorlevel 1 (
@@ -166,6 +181,16 @@ if not exist "%VCPKG_EXE%" (
     echo [v] vcpkg tool bootstrapped
 ) else (
     echo [v] vcpkg tool found
+)
+
+rem 3a.1 Fix msys2 missing /tmp directory (known vcpkg bug)
+set "MSYS2_DIR=%RTABMAP_SRC%\vcpkg\downloads\tools\msys2"
+if exist "%MSYS2_DIR%" (
+    for /d %%i in ("%MSYS2_DIR%\*") do (
+        if not exist "%%i\tmp" (
+            mkdir "%%i\tmp"
+        )
+    )
 )
 
 rem 3b. Check installed dependencies, install if missing
